@@ -1,3 +1,5 @@
+// TEAM 12  -   지뢰 찾기 프로젝트  (2018110115 최지원, 2022116110 정민규, 2022115008 이정민)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,7 +12,7 @@
 #include <stdbool.h>
 
 #define BUF_SIZE 100
-#define NAME_SIZE 20 // Dont use? 
+#define NAME_SIZE 20
 
 //cmd type
 #define GAME_START 1
@@ -31,7 +33,7 @@ typedef struct {
 
 typedef struct {
     int cmd;
-    int x, y;
+    int x,y;
     char c[10];
 
 } PACKET2;
@@ -41,40 +43,37 @@ typedef struct {
     // Here, We need to add data for A_info ,B_info
     int clnt_sock;
     char game[MAX][MAX];
-
+   
 } PACKET;
+
 
 pthread_mutex_t mutx;
 int m, n, bomb;
-// char gameBoard[MAX][MAX];
-// char game[MAX][MAX];
-// struct position bombPosition; // ����ڰ��� ��Ŷ� �̿�Ǵ� ����
 int gameend = 0;
 
 
-void* send_msg(void* arg);
-void* recv_msg(void* arg);
-void error_handling(char* msg);
+void * send_msg(void *arg); 
+void * recv_msg(void *arg);
+void error_handling(char *msg);
+void win(void);
+void lose(void); 
 
-//char name[NAME_SIZE] = "[DEFAULT]";
-//char msg[BUF_SIZE];
-
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     int sock;
     struct sockaddr_in serv_addr;
     pthread_t snd_thread, rcv_thread;
-    void* thread_return;
+    void * thread_return;
 
     PACKET recv_packet;
-    PACKET3 send_packet;
-    memset(&recv_packet, 0, sizeof(recv_packet));
-    memset(&send_packet, 0, sizeof(send_packet));
+	PACKET3 send_packet;
+	memset(&recv_packet,0,sizeof(recv_packet));
+	memset(&send_packet,0,sizeof(send_packet));
     int rx_len;
     char name[50];
 
 
-    if (argc != 4) {
+    if(argc != 4) {
         printf("Usage : %s <IP> <port> <name>\n", argv[0]);
         exit(1);
     }
@@ -82,39 +81,25 @@ int main(int argc, char* argv[])
     //sprintf(name, "[%s]", argv[3]);
     sock = socket(PF_INET, SOCK_STREAM, 0);
 
-    memset(&serv_addr, 0, sizeof(serv_addr));
+    memset(&serv_addr, 0 , sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
     serv_addr.sin_port = htons(atoi(argv[2]));
 
-    if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
+    if(connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
         error_handling("connect() error");
 
-
-    /*
-    pthread_create(&snd_thread, NULL, send_msg, (void*)&sock);
-    pthread_create(&rcv_thread, NULL, recv_msg, (void*)&sock);
-    pthread_join(snd_thread, &thread_return);
-    pthread_join(rcv_thread, &thread_return);
-    */
-
-    while (1)
+    while(1)
     {
-        rx_len = read(sock, (void*)&recv_packet, sizeof(PACKET));
+        rx_len = read(sock, (void*) &recv_packet, sizeof(PACKET));
 
-        if (recv_packet.cmd == GAME_START)
+        if(recv_packet.cmd == GAME_START)
         {
             strcpy(name, argv[3]);
             write(sock, name, strlen(name));
 
             send_packet.cmd = GAME_SETTING;
-            FILE* logo_fp;
-            char logo[BUFSIZ] = { 0, };
-            logo_fp = fopen("logo.txt", "r");
-            fread(logo, sizeof(char), BUFSIZ, logo_fp);
-            printf("\033[1;35m%s\033[0m\n", logo);
-
-            fclose(logo_fp);
+            
             printf("Welcome to Minesweeper\n");
             printf("How many rows? (max 100) : ");
             scanf("%d", &m);
@@ -123,67 +108,54 @@ int main(int argc, char* argv[])
             printf("How many bombs? : ");
             scanf("%d", &bomb);
 
-            // bombPosition.cnt = bomb;
-
-            // for (int i = 0; i < m; i++) {
-            //     for (int j = 0; j < n; j++) {
-            //         gameBoard[i][j] = '0';
-            //         game[i][j] = '*';
-            //     }
-            // }
-
-            // installMines(0, 0, gameBoard, game,m,n,bomb,&bombPosition);
-
-            // graphic(game, m, n);
-
             send_packet.m = m;
             send_packet.n = n;
             send_packet.bomb = bomb;
 
-            write(sock, (void*)&send_packet, sizeof(PACKET3));
-            memset(&send_packet, 0, sizeof(send_packet));
+            write(sock, (void*) &send_packet, sizeof(PACKET3));
+            memset(&send_packet,0,sizeof(send_packet));
 
             printf("Waitting for Setting Other\n");
         }
-        else if (recv_packet.cmd == GAME_PLAY)
+        else if(recv_packet.cmd == GAME_PLAY)
         {
             // output GAME TABLE
             graphic(recv_packet.game, m, n);
             break;
         }
-        memset(&recv_packet, 0, sizeof(recv_packet));
+        memset(&recv_packet,0,sizeof(recv_packet));
 
     }
 
-    // Here We Divide INPUT,, OUTPUT
+    // GAME PALY!!! (입출력을 나눠서 처리한다.)
 
     pthread_create(&snd_thread, NULL, send_msg, (void*)&sock);
     pthread_create(&rcv_thread, NULL, recv_msg, (void*)&sock);
     pthread_join(snd_thread, &thread_return);
     pthread_join(rcv_thread, &thread_return);
 
-
+    
     close(sock);
     return 0;
 }
 
 
 
-
-void* send_msg(void* arg)       // send thread main
+// 입력을 담당하는 쓰레드
+void *send_msg(void *arg)       // send thread main
 {
-    int sock = *((int*)arg);
+    int sock = *((int*) arg);
     char name_msg[NAME_SIZE + BUF_SIZE];
     PACKET2 packet;
-    int x, y;
+    int x,y;
     char cmd[10];
 
     int str_len;
     char buf[BUF_SIZE];
 
-    while (1)
+    while(1)
     {
-        if (gameend) break;
+        if(gameend) break;
         // // GAME END signal handling
         // if(gmaeend == WIN) {
 
@@ -208,9 +180,9 @@ void* send_msg(void* arg)       // send thread main
         printf("Enter command : ");
         scanf("%s", cmd);
 
-        if (gameend) break;
+        if(gameend) break;
 
-        if (cmd[0] != 'o' && cmd[0] != 'f') {
+        if(cmd[0] != 'o' && cmd[0] != 'f' ) {
             printf("Invalid command\n");
             continue;
         }
@@ -220,8 +192,8 @@ void* send_msg(void* arg)       // send thread main
         packet.y = y;
         strncpy(packet.c, cmd, 1);
 
-        write(sock, (void*)&packet, sizeof(PACKET2));
-        memset(&packet, 0, sizeof(packet));
+        write(sock, (void*) &packet, sizeof(PACKET2));
+        memset(&packet,0,sizeof(packet));
 
         sleep(1);
     }
@@ -229,8 +201,8 @@ void* send_msg(void* arg)       // send thread main
 }
 
 
-
-void* recv_msg(void* arg)      // read thread main
+// 출력을 담당하는 쓰레드
+void *recv_msg(void * arg)      // read thread main
 {
     int sock = *((int*)arg);
     char name_msg[NAME_SIZE + BUF_SIZE];
@@ -239,11 +211,11 @@ void* recv_msg(void* arg)      // read thread main
 
     int scorereq = 0;
 
-    while (1)
+    while(1)
     {
-        rx_len = read(sock, (void*)&recv_packet, sizeof(PACKET));
-
-        if (recv_packet.cmd == GAME_PLAY)
+        rx_len = read(sock, (void*) &recv_packet, sizeof(PACKET));
+        
+        if(recv_packet.cmd == GAME_PLAY)
         {
             printf("My GAME INTERFACE\n");
             graphic(recv_packet.game, m, n);
@@ -252,14 +224,16 @@ void* recv_msg(void* arg)      // read thread main
         {
             printf("Other GAME INTERFACE\n");
             graphic(recv_packet.game, m, n);
-
+            
         }
         else if (recv_packet.cmd == WIN)
         {
             pthread_mutex_lock(&mutx);
             gameend = 1;
             pthread_mutex_unlock(&mutx);
-            printf("I catch ALL BOMB FLAG!!! I HAVE WIN YEYEYEYEYE\n");
+            printf("I Find All Bomb !!! I'M WINNER \n\n");
+            win();
+            
 
             scorereq = 1;
             break;
@@ -270,7 +244,8 @@ void* recv_msg(void* arg)      // read thread main
             gameend = 1;
             pthread_mutex_unlock(&mutx);
 
-            printf("I GOT BOMB... I LOSE...\n");
+            printf("I Open Bomb ... I LOSE...\n");
+            lose();
             break;
         }
         else if (recv_packet.cmd == WIN2)
@@ -279,7 +254,8 @@ void* recv_msg(void* arg)      // read thread main
             gameend = 1;
             pthread_mutex_unlock(&mutx);
 
-            printf("Other got bomb!!!! I WIN\n");
+            printf("Other Open Bomb!!!! I'M WINNER\n");
+            win();
             break;
         }
         else if (recv_packet.cmd == LOSE2)
@@ -288,19 +264,20 @@ void* recv_msg(void* arg)      // read thread main
             gameend = 1;
             pthread_mutex_unlock(&mutx);
 
-            printf("Other catch ALL BOMB!!!! I LOSE...\n");
+            printf("Other Find All Bomb !!!!  So I LOSE...\n");
+            lose();
             break;
         }
 
 
     }
 
-    if (scorereq) {
+    if(scorereq) {
         char buf[BUF_SIZE];
         int len;
-        while (1) {
+        while(1) {
             len = read(sock, buf, BUF_SIZE);
-            if (len < BUF_SIZE) {
+            if(len < BUF_SIZE) {
                 break;
             }
             printf("%s", buf);
@@ -310,9 +287,37 @@ void* recv_msg(void* arg)      // read thread main
 }
 
 
-void error_handling(char* msg)
+void error_handling(char *msg)
 {
     fputs(msg, stderr);
     fputc('\n', stderr);
     exit(1);
+}
+
+void win()
+{
+    printf("\033[1;32m:'##:::::'##:'####:'##::: ##:'####:'####:\033[0m\n");
+    printf("\033[1;32m: ##:'##: ##:. ##:: ###:: ##: ####: ####:\033[0m\n");
+    printf("\033[1;32m: ##: ##: ##:: ##:: ####: ##: ####: ####:\033[0m\n");
+    printf("\033[1;32m: ##: ##: ##:: ##:: ## ## ##:: ##::: ##::\033[0m\n");
+    printf("\033[1;32m: ##: ##: ##:: ##:: ##. ####::..::::..:::\033[0m\n");
+    printf("\033[1;32m: ##: ##: ##:: ##:: ##:. ###:'####:'####:\033[0m\n");
+    printf("\033[1;32m:. ###. ###::'####: ##::. ##: ####: ####:\033[0m\n");
+    printf("\033[1;32m::...::...:::....::..::::..::....::....::\033[0m\n\n");
+
+    return;
+}
+
+void lose()
+{
+    printf("\033[1;31m:'##::::::::'#######:::'######::'########:'####:'####:\033[0m\n");
+    printf("\033[1;31m: ##:::::::'##.... ##:'##... ##: ##.....:: ####: ####:\033[0m\n");
+    printf("\033[1;31m: ##::::::: ##:::: ##: ##:::..:: ##::::::: ####: ####:\033[0m\n");
+    printf("\033[1;31m: ##::::::: ##:::: ##:. ######:: ######:::: ##::: ##::\033[0m\n");
+    printf("\033[1;31m: ##::::::: ##:::: ##::..... ##: ##...:::::..::::..:::\033[0m\n");
+    printf("\033[1;31m: ##::::::: ##:::: ##:'##::: ##: ##:::::::'####:'####:\033[0m\n");
+    printf("\033[1;31m: ########:. #######::. ######:: ########: ####: ####:\033[0m\n");
+    printf("\033[1;31m:........:::.......::::......:::........::....::....::\033[0m\n\n");
+
+    return;
 }
