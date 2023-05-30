@@ -30,13 +30,13 @@ git clone http://github.com/KinsHishI/System-Programming---Team-Project
 ./Makefile
 ```
 
-3. For Server & Client
-3-1. Execute the ```mserver```, Usage : ./mserver <Port>
+3. For Server & Client<br>
+
+3-1. Execute the ```mserver```, Usage : ./mserver (Port)
 ```
 ./mserver 9190
 ```
-  
-3-2. Execute the ```mclinet```, Usage : ./mclinet <IP> <Port> <Name>
+3-2. Execute the ```mclinet```, Usage : ./mclinet (IP) (Port) (Name)
 ```
 ./mclient 127.0.0.1 9190 Dummy
 ```
